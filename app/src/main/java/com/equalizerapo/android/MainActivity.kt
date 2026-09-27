@@ -1,30 +1,33 @@
 package com.equalizerapo.android
 
+import android.Manifest
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
-import android.widget.Button
-import android.widget.SeekBar
-import android.widget.TextView
-import android.widget.Toast
+import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.equalizerapo.android.model.ApoPreset
 import com.equalizerapo.android.model.EqFilter
 import com.equalizerapo.android.model.FilterType
+import com.equalizerapo.android.model.PresetsDatabase
 import com.equalizerapo.android.parser.EqualizerApoParser
 import com.equalizerapo.android.service.AudioEffectService
 import com.equalizerapo.android.ui.EqVisualizerView
 import com.equalizerapo.android.ui.FilterListAdapter
 import com.google.android.material.switchmaterial.SwitchMaterial
-import java.io.FileOutputStream
 
 class MainActivity : AppCompatActivity() {
 
@@ -34,20 +37,15 @@ class MainActivity : AppCompatActivity() {
     private lateinit var switchMasterPower: SwitchMaterial
     private lateinit var seekPreamp: SeekBar
     private lateinit var textPreampVal: TextView
+    private lateinit var spinnerPresets: Spinner
 
     private var audioService: AudioEffectService? = null
     private var isServiceBound = false
 
     private val currentPreset = ApoPreset(
-        name = "Default Preset",
-        preampDb = -2.0f,
-        filters = mutableListOf(
-            EqFilter(1, true, FilterType.PEAKING, 105f, 3.5f, 1.41f),
-            EqFilter(2, true, FilterType.PEAKING, 300f, -1.5f, 1.00f),
-            EqFilter(3, true, FilterType.PEAKING, 2400f, 2.0f, 1.41f),
-            EqFilter(4, true, FilterType.PEAKING, 8000f, 4.0f, 1.41f),
-            EqFilter(5, true, FilterType.HIGH_SHELF, 12000f, -1.0f, 0.71f)
-        )
+        name = PresetsDatabase.presets[0].name,
+        preampDb = PresetsDatabase.presets[0].preampDb,
+        filters = PresetsDatabase.presets[0].filters.map { it.copy() }.toMutableList()
     )
 
     private val serviceConnection = object : ServiceConnection {
@@ -84,8 +82,27 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
+        checkPermissions()
         initViews()
         startAudioService()
+    }
+
+    private fun checkPermissions() {
+        val permissions = mutableListOf(
+            Manifest.permission.MODIFY_AUDIO_SETTINGS,
+            Manifest.permission.RECORD_AUDIO
+        )
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            permissions.add(Manifest.permission.POST_NOTIFICATIONS)
+        }
+
+        val missing = permissions.filter {
+            ContextCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
+        }
+
+        if (missing.isNotEmpty()) {
+            ActivityCompat.requestPermissions(this, missing.toTypedArray(), 101)
+        }
     }
 
     private fun initViews() {
@@ -94,24 +111,26 @@ class MainActivity : AppCompatActivity() {
         switchMasterPower = findViewById(R.id.switch_master_power)
         seekPreamp = findViewById(R.id.seek_preamp)
         textPreampVal = findViewById(R.id.text_preamp_val)
+        spinnerPresets = findViewById(R.id.spinner_presets)
 
         visualizerView.setPreset(currentPreset)
 
-        recyclerFilters.layoutManager = LinearLayoutManager(this)
+        // Horizontal LayoutManager for Peace GUI Vertical Band Cards
+        recyclerFilters.layoutManager = LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false)
         filterAdapter = FilterListAdapter(currentPreset.filters) {
             onPresetUpdated()
         }
         recyclerFilters.adapter = filterAdapter
 
-        // Preamp setup (-12 dB to +12 dB)
-        val initialProgress = ((currentPreset.preampDb + 12f) * 10f).toInt().coerceIn(0, 240)
+        // Preamp setup (-30 dB to +30 dB, max 600, 300 = 0 dB)
+        val initialProgress = ((currentPreset.preampDb + 30f) * 10f).toInt().coerceIn(0, 600)
         seekPreamp.progress = initialProgress
         textPreampVal.text = "${String.format("%.1f", currentPreset.preampDb)} dB"
 
         seekPreamp.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
                 if (fromUser) {
-                    val db = (progress / 10f) - 12f
+                    val db = (progress / 10f) - 30f
                     currentPreset.preampDb = db
                     textPreampVal.text = "${String.format("%.1f", db)} dB"
                     onPresetUpdated()
@@ -122,8 +141,43 @@ class MainActivity : AppCompatActivity() {
         })
 
         switchMasterPower.setOnCheckedChangeListener { _, isChecked ->
+            switchMasterPower.text = if (isChecked) "ON" else "OFF"
             audioService?.updatePreset(currentPreset, isChecked)
-            Toast.makeText(this, if (isChecked) "Equalizer APO Enabled" else "Equalizer APO Disabled", Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, if (isChecked) "Peace Equalizer APO Enabled" else "Peace Equalizer APO Disabled", Toast.LENGTH_SHORT).show()
+        }
+
+        // Setup Presets Spinner
+        val presetNames = PresetsDatabase.presets.map { it.name }.toTypedArray()
+        val adapter = ArrayAdapter(this, android.R.layout.simple_spinner_dropdown_item, presetNames)
+        spinnerPresets.adapter = adapter
+
+        spinnerPresets.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: android.view.View?, position: Int, id: Long) {
+                val selected = PresetsDatabase.presets[position]
+                loadPreset(selected)
+            }
+            override fun onNothingSelected(parent: AdapterView<*>?) {}
+        }
+
+        findViewById<Button>(R.id.btn_add_filter).setOnClickListener {
+            val newId = currentPreset.filters.size + 1
+            currentPreset.filters.add(EqFilter(newId, true, FilterType.PEAKING, 1000f, 0f, 1.41f))
+            filterAdapter.notifyItemInserted(currentPreset.filters.size - 1)
+            recyclerFilters.scrollToPosition(currentPreset.filters.size - 1)
+            onPresetUpdated()
+        }
+
+        findViewById<Button>(R.id.btn_remove_filter).setOnClickListener {
+            if (currentPreset.filters.isNotEmpty()) {
+                val lastIdx = currentPreset.filters.size - 1
+                currentPreset.filters.removeAt(lastIdx)
+                filterAdapter.notifyItemRemoved(lastIdx)
+                onPresetUpdated()
+            }
+        }
+
+        findViewById<Button>(R.id.btn_autoeq).setOnClickListener {
+            showAutoEqDialog()
         }
 
         findViewById<Button>(R.id.btn_import_config).setOnClickListener {
@@ -137,18 +191,37 @@ class MainActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btn_export_config).setOnClickListener {
             exportConfigLauncher.launch("config.txt")
         }
+    }
 
-        findViewById<Button>(R.id.btn_add_filter).setOnClickListener {
-            val newId = currentPreset.filters.size + 1
-            currentPreset.filters.add(EqFilter(newId, true, FilterType.PEAKING, 1000f, 0f, 1.41f))
-            filterAdapter.notifyItemInserted(currentPreset.filters.size - 1)
-            onPresetUpdated()
-        }
+    private fun loadPreset(preset: ApoPreset) {
+        currentPreset.preampDb = preset.preampDb
+        currentPreset.filters.clear()
+        currentPreset.filters.addAll(preset.filters.map { it.copy() })
+
+        filterAdapter.notifyDataSetChanged()
+        val preampProgress = ((currentPreset.preampDb + 30f) * 10f).toInt().coerceIn(0, 600)
+        seekPreamp.progress = preampProgress
+        textPreampVal.text = "${String.format("%.1f", currentPreset.preampDb)} dB"
+        onPresetUpdated()
+    }
+
+    private fun showAutoEqDialog() {
+        val autoEqPresets = PresetsDatabase.presets.filter { it.name.startsWith("AutoEQ") }
+        val names = autoEqPresets.map { it.name }.toTypedArray()
+
+        AlertDialog.Builder(this)
+            .setTitle("Select AutoEQ Headphone Calibration")
+            .setItems(names) { _, which ->
+                loadPreset(autoEqPresets[which])
+                Toast.makeText(this, "Loaded ${names[which]}", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
     }
 
     private fun startAudioService() {
         val intent = Intent(this, AudioEffectService::class.java)
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             startForegroundService(intent)
         } else {
             startService(intent)
@@ -176,7 +249,7 @@ class MainActivity : AppCompatActivity() {
                 currentPreset.filters.addAll(imported.filters)
 
                 filterAdapter.notifyDataSetChanged()
-                val preampProgress = ((currentPreset.preampDb + 12f) * 10f).toInt().coerceIn(0, 240)
+                val preampProgress = ((currentPreset.preampDb + 30f) * 10f).toInt().coerceIn(0, 600)
                 seekPreamp.progress = preampProgress
                 textPreampVal.text = "${String.format("%.1f", currentPreset.preampDb)} dB"
                 onPresetUpdated()

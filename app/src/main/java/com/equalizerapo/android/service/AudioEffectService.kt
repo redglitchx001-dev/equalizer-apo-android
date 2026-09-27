@@ -2,7 +2,7 @@ package com.equalizerapo.android.service
 
 import android.app.*
 import android.content.Intent
-import android.media.AudioManager
+import android.media.audiofx.AudioEffect
 import android.os.Binder
 import android.os.Build
 import android.os.IBinder
@@ -16,8 +16,11 @@ class AudioEffectService : Service() {
 
     private val binder = LocalBinder()
     lateinit var dspEngine: AudioDspEngine
-    private val CHANNEL_ID = "EqualizerAPO_ServiceChannel"
+    private val CHANNEL_ID = "EqualizerAPO_PeaceChannel"
     private val NOTIFICATION_ID = 1001
+
+    private var currentPreset: ApoPreset? = null
+    private var isMasterEnabled = true
 
     inner class LocalBinder : Binder() {
         fun getService(): AudioEffectService = this@AudioEffectService
@@ -26,17 +29,33 @@ class AudioEffectService : Service() {
     override fun onCreate() {
         super.onCreate()
         dspEngine = AudioDspEngine(this)
-        dspEngine.initAudioSession(0) // System-wide global audio output
+        dspEngine.attachSession(0) // System-wide global audio output session 0
         createNotificationChannel()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val notification = buildNotification("Equalizer APO is active (System-wide DSP)")
+        val notification = buildNotification("Peace Equalizer APO is active (System-wide DSP)")
         startForeground(NOTIFICATION_ID, notification)
+
+        intent?.let {
+            val actionType = it.getStringExtra("ACTION_TYPE")
+            val sessionId = it.getIntExtra("SESSION_ID", -1)
+
+            if (sessionId > 0 && actionType != null) {
+                if (actionType == AudioEffect.ACTION_OPEN_AUDIO_EFFECT_SESSION) {
+                    dspEngine.attachSession(sessionId)
+                } else if (actionType == AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_SESSION) {
+                    dspEngine.detachSession(sessionId)
+                }
+            }
+        }
+
         return START_STICKY
     }
 
     fun updatePreset(preset: ApoPreset, enabled: Boolean) {
+        this.currentPreset = preset
+        this.isMasterEnabled = enabled
         dspEngine.setEnabled(enabled)
         if (enabled) {
             dspEngine.applyPreset(preset)
@@ -50,7 +69,7 @@ class AudioEffectService : Service() {
         )
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Equalizer APO Android")
+            .setContentTitle("Peace Equalizer APO")
             .setContentText(text)
             .setSmallIcon(R.drawable.ic_power)
             .setContentIntent(pendingIntent)
@@ -62,7 +81,7 @@ class AudioEffectService : Service() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "Equalizer APO Service",
+                "Peace Equalizer APO Service",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "System-wide Audio Equalization Engine"

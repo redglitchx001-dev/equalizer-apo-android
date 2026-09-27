@@ -4,24 +4,24 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/apo_dark_bg">
+    android:background="#17191C">
 
-    <!-- Header Toolbar -->
+    <!-- Peace GUI Top Navigation Bar -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="64dp"
-        android:background="@color/apo_card_bg"
+        android:layout_height="56dp"
+        android:background="#212529"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingHorizontal="16dp">
+        android:paddingHorizontal="12dp">
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Equalizer APO"
-            android:textColor="@color/white"
-            android:textSize="20sp"
+            android:text="Peace Equalizer APO"
+            android:textColor="#00E676"
+            android:textSize="18sp"
             android:textStyle="bold" />
 
         <com.google.android.material.switchmaterial.SwitchMaterial
@@ -29,18 +29,104 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:checked="true"
-            app:thumbTint="@color/apo_accent"
-            app:trackTint="@color/apo_accent_dim" />
+            android:text="ON"
+            android:textColor="#00E676"
+            android:textSize="14sp"
+            app:thumbTint="#00E676"
+            app:trackTint="#008040" />
     </LinearLayout>
 
-    <!-- Visualizer Graph Card -->
+    <!-- Presets & Preamp Header Card -->
     <com.google.android.material.card.MaterialCardView
         android:layout_width="match_parent"
-        android:layout_height="180dp"
-        android:layout_margin="12dp"
-        app:cardBackgroundColor="@color/apo_card_bg"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="4dp">
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="8dp"
+        android:layout_marginTop="6dp"
+        app:cardBackgroundColor="#212529"
+        app:cardCornerRadius="8dp"
+        app:strokeColor="#3A3E45"
+        app:strokeWidth="1dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="8dp">
+
+            <!-- Presets Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Preset:"
+                    android:textColor="#CCCCCC"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <Spinner
+                    android:id="@+id/spinner_presets"
+                    android:layout_width="0dp"
+                    android:layout_height="36dp"
+                    android:layout_weight="1"
+                    android:layout_marginStart="8dp"
+                    android:background="#15171A" />
+            </LinearLayout>
+
+            <!-- Preamp & Channel Selector Row -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical"
+                android:layout_marginTop="6dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Preamp:"
+                    android:textColor="#CCCCCC"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <SeekBar
+                    android:id="@+id/seek_preamp"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:max="600"
+                    android:progress="300"
+                    android:progressTint="#00B0FF"
+                    android:thumbTint="#00E676" />
+
+                <TextView
+                    android:id="@+id/text_preamp_val"
+                    android:layout_width="54dp"
+                    android:layout_height="wrap_content"
+                    android:gravity="end"
+                    android:text="0.0 dB"
+                    android:textColor="#00E676"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </com.google.android.material.card.MaterialCardView>
+
+    <!-- Peace Graph Window Analysis View -->
+    <com.google.android.material.card.MaterialCardView
+        android:layout_width="match_parent"
+        android:layout_height="140dp"
+        android:layout_marginHorizontal="8dp"
+        android:layout_marginTop="6dp"
+        app:cardBackgroundColor="#15171A"
+        app:cardCornerRadius="8dp"
+        app:strokeColor="#3A3E45"
+        app:strokeWidth="1dp">
 
         <com.equalizerapo.android.ui.EqVisualizerView
             android:id="@+id/visualizer_view"
@@ -48,98 +134,21 @@
             android:layout_height="match_parent" />
     </com.google.android.material.card.MaterialCardView>
 
-    <!-- Preamp Slider Section -->
-    <com.google.android.material.card.MaterialCardView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginHorizontal="12dp"
-        android:layout_marginBottom="8dp"
-        app:cardBackgroundColor="@color/apo_card_bg"
-        app:cardCornerRadius="8dp">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical"
-            android:padding="12dp">
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Preamp:"
-                android:textColor="@color/white"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-
-            <SeekBar
-                android:id="@+id/seek_preamp"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:max="240"
-                android:progress="120"
-                android:progressTint="@color/apo_accent"
-                android:thumbTint="@color/apo_accent" />
-
-            <TextView
-                android:id="@+id/text_preamp_val"
-                android:layout_width="60dp"
-                android:layout_height="wrap_content"
-                android:gravity="end"
-                android:text="0.0 dB"
-                android:textColor="@color/apo_accent"
-                android:textSize="14sp"
-                android:textStyle="bold" />
-        </LinearLayout>
-    </com.google.android.material.card.MaterialCardView>
-
-    <!-- Action Buttons Bar -->
+    <!-- Vertical Band Sliders Grid Header -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
         android:paddingHorizontal="12dp"
-        android:paddingBottom="4dp">
-
-        <Button
-            android:id="@+id/btn_import_config"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginEnd="6dp"
-            android:text="Import .txt"
-            android:textColor="@color/apo_accent"
-            app:strokeColor="@color/apo_accent" />
-
-        <Button
-            android:id="@+id/btn_export_config"
-            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:layout_marginStart="6dp"
-            android:text="Export .txt"
-            android:textColor="@color/white"
-            app:strokeColor="#555555" />
-    </LinearLayout>
-
-    <!-- Filter Bands List Header -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:paddingHorizontal="16dp"
-        android:paddingVertical="4dp"
+        android:paddingTop="6dp"
         android:gravity="center_vertical">
 
         <TextView
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="Parametric Bands (EAPO Syntax)"
-            android:textColor="#AAAAAA"
+            android:text="Equalizer APO Sliders (Peace GUI)"
+            android:textColor="#00E676"
             android:textSize="12sp"
             android:textStyle="bold" />
 
@@ -147,17 +156,78 @@
             android:id="@+id/btn_add_filter"
             style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="+ Add Band"
-            android:textColor="@color/apo_accent" />
+            android:layout_height="32dp"
+            android:padding="0dp"
+            android:text="+ Add Slider"
+            android:textColor="#00E676"
+            android:textSize="11sp" />
+
+        <Button
+            android:id="@+id/btn_remove_filter"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="32dp"
+            android:padding="0dp"
+            android:text="- Remove"
+            android:textColor="#FF5252"
+            android:textSize="11sp" />
     </LinearLayout>
 
-    <!-- Filter Bands RecyclerView -->
+    <!-- Horizontal Scrollable Vertical Bands RecyclerView -->
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recycler_filters"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1"
-        android:paddingBottom="8dp" />
+        android:paddingHorizontal="4dp"
+        android:scrollbars="horizontal" />
+
+    <!-- Peace GUI Bottom Action Buttons -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:padding="8dp"
+        android:background="#212529">
+
+        <Button
+            android:id="@+id/btn_autoeq"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_weight="1"
+            android:layout_marginEnd="4dp"
+            android:padding="0dp"
+            android:text="AutoEQ Presets"
+            android:textColor="#00E676"
+            android:textSize="11sp"
+            app:strokeColor="#00E676" />
+
+        <Button
+            android:id="@+id/btn_import_config"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_weight="1"
+            android:layout_marginHorizontal="2dp"
+            android:padding="0dp"
+            android:text="Import .txt"
+            android:textColor="#00B0FF"
+            android:textSize="11sp"
+            app:strokeColor="#00B0FF" />
+
+        <Button
+            android:id="@+id/btn_export_config"
+            style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+            android:layout_width="0dp"
+            android:layout_height="38dp"
+            android:layout_weight="1"
+            android:layout_marginStart="4dp"
+            android:padding="0dp"
+            android:text="Export .txt"
+            android:textColor="#FFFFFF"
+            android:textSize="11sp"
+            app:strokeColor="#666666" />
+    </LinearLayout>
 
 </LinearLayout>

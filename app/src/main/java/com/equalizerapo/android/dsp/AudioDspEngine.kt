@@ -2,147 +2,195 @@ package com.equalizerapo.android.dsp
 
 import android.content.Context
 import android.media.audiofx.AudioEffect
+import android.media.audiofx.BassBoost
 import android.media.audiofx.DynamicsProcessing
 import android.media.audiofx.Equalizer
+import android.media.audiofx.LoudnessEnhancer
 import android.os.Build
 import android.util.Log
 import com.equalizerapo.android.model.ApoPreset
 import com.equalizerapo.android.model.EqFilter
 import com.equalizerapo.android.model.FilterType
+import java.util.concurrent.ConcurrentHashMap
 
 /**
- * High-performance DSP engine linking Equalizer APO filters to Android's AudioEffect system.
+ * High-performance Multi-Session DSP Engine supporting global session 0 + dynamic app sessions.
  */
 class AudioDspEngine(private val context: Context) {
 
     private val TAG = "AudioDspEngine"
-    private var equalizer: Equalizer? = null
-    private var dynamicsProcessing: DynamicsProcessing? = null
-    private var isEnabled = false
+    private var isEnabled = true
+    private var currentPreset: ApoPreset? = null
 
-    // Default center frequencies for 10-band Equalizer fallback
+    // Map of SessionID to AudioEffect instances
+    private val activeEqualizers = ConcurrentHashMap<Int, Equalizer>()
+    private val activeDynamicsProcessors = ConcurrentHashMap<Int, DynamicsProcessing>()
+    private val activeLoudnessEnhancers = ConcurrentHashMap<Int, LoudnessEnhancer>()
+    private val activeBassBoosts = ConcurrentHashMap<Int, BassBoost>()
+
     val standardFrequencies = floatArrayOf(31.25f, 62.5f, 125f, 250f, 500f, 1000f, 2000f, 4000f, 8000f, 16000f)
 
-    fun initAudioSession(audioSessionId: Int = 0) {
-        release()
+    fun attachSession(sessionId: Int) {
+        if (activeEqualizers.containsKey(sessionId) || activeDynamicsProcessors.containsKey(sessionId)) {
+            return
+        }
+
         try {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                initDynamicsProcessing(audioSessionId)
-            } else {
-                initFallbackEqualizer(audioSessionId)
+                val bandCount = 10
+                val config = DynamicsProcessing.Config.Builder(
+                    DynamicsProcessing.VARIANT_FAVOR_FREQUENCY_RESOLUTION,
+                    2, // Stereo
+                    true, bandCount, // PreEQ enabled with 10 bands
+                    false, 0,
+                    true, bandCount, // PostEQ enabled with 10 bands
+                    false
+                ).build()
+
+                val dp = DynamicsProcessing(0, sessionId, config).apply {
+                    enabled = isEnabled
+                }
+                activeDynamicsProcessors[sessionId] = dp
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to initialize native AudioEffect", e)
-            initFallbackEqualizer(audioSessionId)
-        }
-    }
-
-    private fun initDynamicsProcessing(audioSessionId: Int) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
-
-        val bandCount = 10
-        val eqConfig = DynamicsProcessing.Eq(true, true, bandCount)
-        
-        for (i in 0 until bandCount) {
-            val band = DynamicsProcessing.EqBand(true, standardFrequencies[i], 0f)
-            eqConfig.setBand(i, band)
+            Log.w(TAG, "DynamicsProcessing not supported on session $sessionId, falling back to Equalizer", e)
         }
 
-        val config = DynamicsProcessing.Config.Builder(
-            DynamicsProcessing.VARIANT_FAVOR_FREQUENCY_RESOLUTION,
-            2, // Stereo
-            true, 1, // PreEQ enabled, 1 band count
-            false, 0, // Mbc
-            true, 1, // PostEQ enabled
-            false // Limiter
-        ).build()
-
-        dynamicsProcessing = DynamicsProcessing(0, audioSessionId, config).apply {
-            enabled = isEnabled
-        }
-    }
-
-    private fun initFallbackEqualizer(audioSessionId: Int) {
         try {
-            equalizer = Equalizer(0, audioSessionId).apply {
+            val eq = Equalizer(0, sessionId).apply {
                 enabled = isEnabled
             }
+            activeEqualizers[sessionId] = eq
         } catch (e: Exception) {
-            Log.e(TAG, "Equalizer initialization error", e)
+            Log.e(TAG, "Failed to attach Equalizer on session $sessionId", e)
+        }
+
+        try {
+            val le = LoudnessEnhancer(sessionId).apply {
+                enabled = isEnabled
+            }
+            activeLoudnessEnhancers[sessionId] = le
+        } catch (e: Exception) {
+            Log.w(TAG, "LoudnessEnhancer not available on session $sessionId", e)
+        }
+
+        try {
+            val bb = BassBoost(0, sessionId).apply {
+                enabled = isEnabled
+            }
+            activeBassBoosts[sessionId] = bb
+        } catch (e: Exception) {
+            Log.w(TAG, "BassBoost not available on session $sessionId", e)
+        }
+
+        // Apply current preset to newly attached session
+        currentPreset?.let { applyPresetToSession(sessionId, it) }
+    }
+
+    fun detachSession(sessionId: Int) {
+        if (sessionId == 0) return // Keep session 0 alive
+
+        activeDynamicsProcessors.remove(sessionId)?.apply {
+            try { enabled = false; release() } catch (e: Exception) {}
+        }
+        activeEqualizers.remove(sessionId)?.apply {
+            try { enabled = false; release() } catch (e: Exception) {}
+        }
+        activeLoudnessEnhancers.remove(sessionId)?.apply {
+            try { enabled = false; release() } catch (e: Exception) {}
+        }
+        activeBassBoosts.remove(sessionId)?.apply {
+            try { enabled = false; release() } catch (e: Exception) {}
         }
     }
 
     fun applyPreset(preset: ApoPreset) {
+        this.currentPreset = preset
         if (!isEnabled) return
 
+        activeEqualizers.keys.forEach { sessionId ->
+            applyPresetToSession(sessionId, preset)
+        }
+        activeDynamicsProcessors.keys.forEach { sessionId ->
+            applyPresetToSession(sessionId, preset)
+        }
+    }
+
+    private fun applyPresetToSession(sessionId: Int, preset: ApoPreset) {
         val activeFilters = preset.filters.filter { it.enabled }
         val biquads = activeFilters.map { BiquadFilter.fromEqFilter(it) }
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && dynamicsProcessing != null) {
-            applyToDynamicsProcessing(preset.preampDb, biquads)
-        } else if (equalizer != null) {
-            applyToEqualizer(preset.preampDb, biquads)
-        }
-    }
-
-    private fun applyToDynamicsProcessing(preampDb: Float, biquads: List<BiquadFilter>) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
-        
-        // Calculate combined magnitude at standard frequencies
-        for (i in standardFrequencies.indices) {
-            val freq = standardFrequencies[i]
-            var totalGainDb = preampDb
-
-            for (biquad in biquads) {
-                totalGainDb += biquad.getMagnitudeDb(freq)
-            }
-
-            // Clamp gain between -15 dB and +15 dB for safety
-            val clampedGain = totalGainDb.coerceIn(-15f, 15f)
+        // Apply Preamp gain using LoudnessEnhancer
+        activeLoudnessEnhancers[sessionId]?.let { le ->
             try {
-                dynamicsProcessing?.setPreEqBandAllChannelsTo(i, DynamicsProcessing.EqBand(true, freq, clampedGain))
+                // LoudnessEnhancer gain is in mB (millibels), 1 dB = 100 mB
+                val preampMb = (preset.preampDb * 100).toInt().coerceIn(-3000, 3000)
+                le.setTargetGain(preampMb)
+                le.enabled = isEnabled && preset.preampDb != 0f
             } catch (e: Exception) {
-                Log.w(TAG, "Error setting band $i gain", e)
+                Log.w(TAG, "Error applying preamp gain to session $sessionId", e)
             }
         }
-    }
 
-    private fun applyToEqualizer(preampDb: Float, biquads: List<BiquadFilter>) {
-        val eq = equalizer ?: return
-        val numBands = eq.numberOfBands.toInt()
-        val range = eq.bandLevelRange // e.g. [-1500, 1500] in millibels
+        // Apply DynamicsProcessing Eq Bands
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            activeDynamicsProcessors[sessionId]?.let { dp ->
+                try {
+                    dp.enabled = isEnabled
+                    for (i in standardFrequencies.indices) {
+                        val freq = standardFrequencies[i]
+                        var totalGainDb = 0f
 
-        for (band in 0 until numBands) {
-            val centerFreqHz = eq.getCenterFreq(band.toShort()) / 1000f
-            var totalGainDb = preampDb
+                        for (biquad in biquads) {
+                            totalGainDb += biquad.getMagnitudeDb(freq)
+                        }
 
-            for (biquad in biquads) {
-                totalGainDb += biquad.getMagnitudeDb(centerFreqHz)
+                        val clampedGain = totalGainDb.coerceIn(-24f, 24f)
+                        val band = DynamicsProcessing.EqBand(true, freq, clampedGain)
+                        dp.setPreEqBandAllChannelsTo(i, band)
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error applying DynamicsProcessing to session $sessionId", e)
+                }
             }
+        }
 
-            val millibels = (totalGainDb * 100).toInt().coerceIn(range[0].toInt(), range[1].toInt())
+        // Apply Equalizer Bands (Fallback / Concurrent)
+        activeEqualizers[sessionId]?.let { eq ->
             try {
-                eq.setBandLevel(band.toShort(), millibels.toShort())
+                eq.enabled = isEnabled
+                val numBands = eq.numberOfBands.toInt()
+                val range = eq.bandLevelRange
+
+                for (band in 0 until numBands) {
+                    val centerFreqHz = eq.getCenterFreq(band.toShort()) / 1000f
+                    var totalGainDb = 0f
+
+                    for (biquad in biquads) {
+                        totalGainDb += biquad.getMagnitudeDb(centerFreqHz)
+                    }
+
+                    val millibels = (totalGainDb * 100).toInt().coerceIn(range[0].toInt(), range[1].toInt())
+                    eq.setBandLevel(band.toShort(), millibels.toShort())
+                }
             } catch (e: Exception) {
-                Log.w(TAG, "Error setting equalizer band $band", e)
+                Log.w(TAG, "Error applying Equalizer to session $sessionId", e)
             }
         }
     }
 
     fun setEnabled(enabled: Boolean) {
         isEnabled = enabled
-        dynamicsProcessing?.enabled = enabled
-        equalizer?.enabled = enabled
+        activeDynamicsProcessors.values.forEach { try { it.enabled = enabled } catch (e: Exception) {} }
+        activeEqualizers.values.forEach { try { it.enabled = enabled } catch (e: Exception) {} }
+        activeLoudnessEnhancers.values.forEach { try { it.enabled = enabled } catch (e: Exception) {} }
+        activeBassBoosts.values.forEach { try { it.enabled = enabled } catch (e: Exception) {} }
+
+        currentPreset?.let { applyPreset(it) }
     }
 
     fun release() {
-        try {
-            dynamicsProcessing?.release()
-            dynamicsProcessing = null
-            equalizer?.release()
-            equalizer = null
-        } catch (e: Exception) {
-            Log.e(TAG, "Error releasing audio effects", e)
-        }
+        activeDynamicsProcessors.keys.toList().forEach { detachSession(it) }
+        activeEqualizers.keys.toList().forEach { detachSession(it) }
     }
 }

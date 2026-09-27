@@ -42,9 +42,9 @@ class AudioEffectService : Service() {
             val sessionId = it.getIntExtra("SESSION_ID", -1)
 
             if (sessionId > 0 && actionType != null) {
-                if (actionType == AudioEffect.ACTION_OPEN_AUDIO_EFFECT_SESSION) {
+                if (actionType == "android.media.action.OPEN_AUDIO_EFFECT_SESSION" || actionType == AudioEffect.ACTION_OPEN_AUDIO_EFFECT_SESSION) {
                     dspEngine.attachSession(sessionId)
-                } else if (actionType == AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_SESSION) {
+                } else if (actionType == "android.media.action.CLOSE_AUDIO_EFFECT_SESSION" || actionType == AudioEffect.ACTION_CLOSE_AUDIO_EFFECT_SESSION) {
                     dspEngine.detachSession(sessionId)
                 }
             }

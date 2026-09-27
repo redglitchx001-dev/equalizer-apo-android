@@ -25,7 +25,7 @@ enum class FilterType(val code: String, val displayName: String) {
  * Individual filter band representation matching Equalizer APO config specification.
  */
 data class EqFilter(
-    val id: Int,
+    var id: Int,
     var enabled: Boolean = true,
     var type: FilterType = FilterType.PEAKING,
     var frequency: Float = 1000f, // Hz

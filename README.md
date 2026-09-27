@@ -2,9 +2,11 @@
 
 [![License: GPL v2](https://img.shields.io/badge/License-GPL_v2-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Android_9.0%2B-brightgreen.svg)](https://developer.android.com)
-[![Build](https://img.shields.io/badge/Build-Gradle_SDK_34-orange.svg)](app/build.gradle.kts)
+[![Build APK](https://github.com/redglitchx001-dev/equalizer-apo-android/actions/workflows/build-apk.yml/badge.svg)](https://github.com/redglitchx001-dev/equalizer-apo-android/actions)
 
 An open-source Android application bringing the parametric equalization engine, system-wide audio processing, and `config.txt` compatibility of **Equalizer APO** to Android devices.
+
+🌐 **GitHub Repository**: [https://github.com/redglitchx001-dev/equalizer-apo-android](https://github.com/redglitchx001-dev/equalizer-apo-android)
 
 ---
 
@@ -50,6 +52,7 @@ EqualizerAPO-Android/
 │   │   │   └── ui/EqVisualizerView.kt        # Real-time curve graph
 │   │   └── AndroidManifest.xml
 │   └── build.gradle.kts
+├── .github/workflows/build-apk.yml           # GitHub Actions automated APK build
 ├── build.gradle.kts
 ├── settings.gradle.kts
 └── README.md
@@ -59,56 +62,23 @@ EqualizerAPO-Android/
 
 ## 🚀 How to Build the APK
 
-### Requirements
-- Java Development Kit (JDK) 17+
-- Android SDK (API Level 34)
-- Gradle 8.2+
+### Automated GitHub Build
+The repository contains a GitHub Actions workflow `.github/workflows/build-apk.yml` that automatically builds the APK on every commit! You can download the latest `app-debug.apk` directly from the [GitHub Actions tab](https://github.com/redglitchx001-dev/equalizer-apo-android/actions).
 
-### Command Line Build
+### Command Line Build (Local)
 
-1. **Clone or navigate to the repository directory**:
+1. **Clone the repository**:
    ```bash
-   cd EqualizerAPO-Android
+   git clone https://github.com/redglitchx001-dev/equalizer-apo-android.git
+   cd equalizer-apo-android
    ```
 
-2. **Grant execution permissions to gradlew**:
-   ```bash
-   chmod +x gradlew
-   ```
-
-3. **Build Debug APK**:
+2. **Build Debug APK**:
    ```bash
    ./gradlew assembleDebug
    ```
    *The generated APK will be located at:*  
    `app/build/outputs/apk/debug/app-debug.apk`
-
-4. **Build Release APK**:
-   ```bash
-   ./gradlew assembleRelease
-   ```
-   *The generated APK will be located at:*  
-   `app/build/outputs/apk/release/app-release-unsigned.apk`
-
----
-
-## 📦 How to Publish to GitHub & Share APK
-
-1. **Create a new repository on GitHub**:
-   Go to [GitHub New Repository](https://github.null/new) and name it `equalizer-apo-android`.
-
-2. **Link local repository and push**:
-   ```bash
-   git remote add origin https://github.null/<YOUR_USERNAME>/equalizer-apo-android.git
-   git branch -M main
-   git push -u origin main
-   ```
-
-3. **Create a GitHub Release with the APK**:
-   - Go to your repository on GitHub -> **Releases** -> **Draft a new release**.
-   - Tag version: `v1.0.0`.
-   - Upload `app-debug.apk` or signed release APK as an asset.
-   - Users can now download and install the APK directly on their Android devices!
 
 ---
 

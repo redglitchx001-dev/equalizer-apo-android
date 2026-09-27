@@ -109,6 +109,7 @@ class MainActivity : AppCompatActivity() {
         visualizerView = findViewById(R.id.visualizer_view)
         recyclerFilters = findViewById(R.id.recycler_filters)
         switchMasterPower = findViewById(R.id.switch_master_power)
+        val switchMicPower = findViewById<SwitchMaterial>(R.id.switch_mic_power)
         seekPreamp = findViewById(R.id.seek_preamp)
         textPreampVal = findViewById(R.id.text_preamp_val)
         spinnerPresets = findViewById(R.id.spinner_presets)
@@ -144,6 +145,11 @@ class MainActivity : AppCompatActivity() {
             switchMasterPower.text = if (isChecked) "ON" else "OFF"
             audioService?.updatePreset(currentPreset, isChecked)
             Toast.makeText(this, if (isChecked) "Peace Equalizer APO Enabled" else "Peace Equalizer APO Disabled", Toast.LENGTH_SHORT).show()
+        }
+        
+        switchMicPower.setOnCheckedChangeListener { _, isChecked ->
+            audioService?.setMicLoopbackEnabled(isChecked)
+            Toast.makeText(this, if (isChecked) "Mic Output Enabled" else "Mic Output Disabled", Toast.LENGTH_SHORT).show()
         }
 
         // Setup Presets Spinner

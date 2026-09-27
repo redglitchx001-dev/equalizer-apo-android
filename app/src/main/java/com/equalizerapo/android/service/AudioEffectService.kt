@@ -20,6 +20,8 @@ class AudioEffectService : Service() {
 
     private var currentPreset: ApoPreset? = null
     private var isMasterEnabled = true
+    
+    private val micLoopbackEngine = com.equalizerapo.android.dsp.MicLoopbackEngine()
 
     inner class LocalBinder : Binder() {
         fun getService(): AudioEffectService = this@AudioEffectService
@@ -30,6 +32,13 @@ class AudioEffectService : Service() {
         dspEngine = AudioDspEngine(this)
         dspEngine.attachSession(0) // System-wide global audio output session 0
         createNotificationChannel()
+        
+        micLoopbackEngine.onSessionStarted = { sessionId ->
+            dspEngine.attachSession(sessionId)
+        }
+        micLoopbackEngine.onSessionEnded = { sessionId ->
+            dspEngine.detachSession(sessionId)
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -50,6 +59,14 @@ class AudioEffectService : Service() {
         }
 
         return START_STICKY
+    }
+    
+    fun setMicLoopbackEnabled(enabled: Boolean) {
+        if (enabled) {
+            micLoopbackEngine.startLoopback()
+        } else {
+            micLoopbackEngine.stopLoopback()
+        }
     }
 
     fun updatePreset(preset: ApoPreset, enabled: Boolean) {

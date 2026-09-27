@@ -45,11 +45,7 @@ APP_NAME="Gradle"
 APP_BASE_NAME=`basename "$0"`
 
 # Add default JVM options here. You can also use JAVA_OPTS and GRADLE_OPTS to pass JVM options to this script.
-DEFAULT_JVM_OPTS='"-Xmx64m" "-Xms64m"'
-
-# Use the maximum available byte code version for the current Java version.
-# Useful if the user has installed a newer Java version than Gradle was compiled for.
-JAVA_OPTS="$JAVA_OPTS -Dorg.gradle.jvmargs=-Xmx2048m"
+DEFAULT_JVM_OPTS=""
 
 warn () {
     echo "$*"
